@@ -1,122 +1,75 @@
 #include QMK_KEYBOARD_H
 #include "translate_ansi_to_jis.h"
 
-uint8_t mod_state;
+const uint16_t translate_map[][5] = {
+// ANSI        JIS Shifted       JIS Not Shifted
+  {KC_0   ,    KC_9   , SHFT,    KC_0   , USFT}, //  48
+  {KC_2   ,    KC_LBRC, USFT,    KC_2   , USFT}, //  50
+  {KC_6   ,    KC_EQL , USFT,    KC_6   , USFT}, //  54
+  {KC_7   ,    KC_6   , SHFT,    KC_7   , USFT}, //  55
+  {KC_8   ,    KC_QUOT, SHFT,    KC_8   , USFT}, //  56
+  {KC_9   ,    KC_8   , SHFT,    KC_9   , USFT}, //  57
+  {KC_SCLN,    KC_QUOT, USFT,    KC_SCLN, USFT}, // 186
+  {KC_EQL ,    KC_SCLN, SHFT,    KC_MINS, SHFT}, // 187
+  {KC_MINS,    KC_INT1, SHFT,    KC_MINS, USFT}, // 189
+  {KC_LBRC,    KC_RBRC, SHFT,    KC_RBRC, USFT}, // 219
+  {KC_BSLS,    KC_INT3, SHFT,    KC_INT3, USFT}, // 220
+  {KC_RBRC,    KC_NUHS, SHFT,    KC_NUHS, USFT}, // 221
+  {KC_QUOT,    KC_2   , SHFT,    KC_7   , SHFT}, // 222
+  {KC_GRV ,    KC_EQL , SHFT,    KC_LBRC, SHFT}, // 192
+  {KC_RPRN,    KC_9   , SHFT,    KC_9   , SHFT}, //  48 + 512
+  {KC_AT  ,    KC_LBRC, USFT,    KC_LBRC, USFT}, //  50 + 512
+  {KC_CIRC,    KC_EQL , USFT,    KC_EQL , USFT}, //  54 + 512
+  {KC_AMPR,    KC_6   , SHFT,    KC_6   , SHFT}, //  55 + 512
+  {KC_ASTR,    KC_QUOT, SHFT,    KC_QUOT, SHFT}, //  56 + 512
+  {KC_LPRN,    KC_8   , SHFT,    KC_8   , SHFT}, //  57 + 512
+  {KC_PLUS,    KC_SCLN, SHFT,    KC_SCLN, SHFT}, // 187 + 512
+  {KC_UNDS,    KC_INT1, SHFT,    KC_INT1, SHFT}, // 189 + 512
+  {KC_LCBR,    KC_RBRC, SHFT,    KC_RBRC, SHFT}, // 219 + 512
+  {KC_PIPE,    KC_INT3, SHFT,    KC_INT3, SHFT}, // 220 + 512
+  {KC_RCBR,    KC_NUHS, SHFT,    KC_NUHS, SHFT}, // 221 + 512
+};
+const size_t rows = sizeof(translate_map) / sizeof(translate_map[0]);
 
-typedef enum {
-  SHFT,
-  USFT
-} mod_shift_t;
+size_t find(uint16_t kc) {
+  size_t index = 0;
+  while (index < rows && translate_map[index][0] != kc)
+    index ++;
+  return index == rows ? -1 : index;
+}
 
 void mod_shift(uint8_t mod_shift) {
-  switch (mod_shift) {
-    case SHFT:
-      set_mods(MOD_BIT(KC_LSFT));
-      break;
-    case USFT:
-      del_mods(MOD_BIT(KC_LSFT));
-      break;
-    default:
-      // invalid mod shift type
-      break;
-  }
+  if (mod_shift == SHFT)
+    set_mods(MOD_BIT(KC_LSFT));
+  else
+    del_mods(MOD_BIT(KC_LSFT));
 }
 
-void translate_shifted(
-  keyrecord_t *record,
-  uint16_t position_key,
-  mod_shift_t position_mod,
-  bool *key_registered) {
-  if (record->event.pressed) {
-    mod_shift(position_mod);
-    register_code(position_key);
+static uint64_t key_registered_bits = 0x0000;
+
+void translate(bool pressed, uint8_t mod_state, size_t index) {
+  if (pressed) {
+    bool offset = !(mod_state & MOD_MASK_SHIFT);
+    mod_shift(translate_map[index][2 + offset * 2]);
+    register_code(translate_map[index][1 + offset * 2]);
     set_mods(mod_state);
-    *key_registered = true;
+    key_registered_bits |= (uint64_t)1 << (index*2 + offset);
   } else {
-    if (*key_registered) {
-      unregister_code(position_key);
-      *key_registered = false;
+    for (uint8_t i = 0; i < 2; i ++) {
+      uint64_t bit_mask = (uint64_t)1 << (index*2 + i);
+      if (key_registered_bits & bit_mask) {
+        unregister_code(translate_map[index][1 + i * 2]);
+        key_registered_bits ^= bit_mask;
+      }
     }
   }
 }
-
-#define TRANSLATE_SHIFTED(POS, POS_MOD) \
-  { \
-    static bool key_registered; \
-    translate_shifted(record, POS, POS_MOD, &key_registered); \
-    return false; \
-  }
-
-void translate(
-  keyrecord_t *record,
-  uint16_t down_position_key,
-  mod_shift_t down_position_mod,
-  bool *key_with_shift_registered,
-  uint16_t up_position_key,
-  mod_shift_t up_position_mod,
-  bool *key_without_shift_registered) {
-  if (record->event.pressed) {
-    if (mod_state & MOD_MASK_SHIFT) {
-      mod_shift(down_position_mod);
-      register_code(down_position_key);
-      *key_with_shift_registered = true;
-    } else {
-      mod_shift(up_position_mod);
-      register_code(up_position_key);
-      *key_without_shift_registered = true;
-    }
-    set_mods(mod_state);
-  } else {
-    if (*key_with_shift_registered) {
-      unregister_code(down_position_key);
-      *key_with_shift_registered = false;
-    } else if (*key_without_shift_registered) {
-      unregister_code(up_position_key);
-      *key_without_shift_registered = false;
-    }
-  }
-}
-
-#define TRANSLATE(DN_POS_KEY, DN_POS_MOD, UP_POS_KEY, UP_POS_MOD) \
-  { \
-    static bool key_with_shift_registered; \
-    static bool key_without_shift_registered; \
-    translate(record, \
-      DN_POS_KEY, DN_POS_MOD, &key_with_shift_registered, \
-      UP_POS_KEY, UP_POS_MOD, &key_without_shift_registered); \
-    return false; \
-  }
 
 bool process_record_user_a2j(uint16_t keycode, keyrecord_t *record) {
-  mod_state = get_mods();
+  size_t index = find(keycode);
+  if (index == -1)
+    return true;
 
-  switch (keycode) {
-    case KC_2   : TRANSLATE(KC_LBRC, USFT,    KC_2   , USFT);
-    case KC_6   : TRANSLATE(KC_EQL , USFT,    KC_6   , USFT);
-    case KC_7   : TRANSLATE(KC_6   , SHFT,    KC_7   , USFT);
-    case KC_8   : TRANSLATE(KC_QUOT, SHFT,    KC_8   , USFT);
-    case KC_9   : TRANSLATE(KC_8   , SHFT,    KC_9   , USFT);
-    case KC_0   : TRANSLATE(KC_9   , SHFT,    KC_0   , USFT);
-    case KC_MINS: TRANSLATE(KC_INT1, SHFT,    KC_MINS, USFT);
-    case KC_EQL : TRANSLATE(KC_SCLN, SHFT,    KC_MINS, SHFT);
-    case KC_LBRC: TRANSLATE(KC_RBRC, SHFT,    KC_RBRC, USFT);
-    case KC_RBRC: TRANSLATE(KC_NUHS, SHFT,    KC_NUHS, USFT);
-    case KC_BSLS: TRANSLATE(KC_INT3, SHFT,    KC_INT3, USFT);
-    case KC_SCLN: TRANSLATE(KC_QUOT, USFT,    KC_SCLN, USFT);
-    case KC_QUOT: TRANSLATE(KC_2   , SHFT,    KC_7   , SHFT);
-    case KC_GRV : TRANSLATE(KC_EQL , SHFT,    KC_LBRC, SHFT);
-    case KC_AT  : TRANSLATE_SHIFTED(KC_LBRC, USFT);
-    case KC_CIRC: TRANSLATE_SHIFTED(KC_EQL , USFT);
-    case KC_AMPR: TRANSLATE_SHIFTED(KC_6   , SHFT);
-    case KC_ASTR: TRANSLATE_SHIFTED(KC_QUOT, SHFT);
-    case KC_LPRN: TRANSLATE_SHIFTED(KC_8   , SHFT);
-    case KC_RPRN: TRANSLATE_SHIFTED(KC_9   , SHFT);
-    case KC_PIPE: TRANSLATE_SHIFTED(KC_INT3, SHFT);
-    case KC_LCBR: TRANSLATE_SHIFTED(KC_RBRC, SHFT);
-    case KC_RCBR: TRANSLATE_SHIFTED(KC_NUHS, SHFT);
-    case KC_UNDS: TRANSLATE_SHIFTED(KC_INT1, SHFT);
-    case KC_PLUS: TRANSLATE_SHIFTED(KC_SCLN, SHFT);
-    default:
-      return true;
-  }
+  translate(record->event.pressed, get_mods(), index);
+  return false;
 }
