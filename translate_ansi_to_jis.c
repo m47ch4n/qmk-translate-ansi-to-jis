@@ -1,6 +1,9 @@
 #include QMK_KEYBOARD_H
 #include "translate_ansi_to_jis.h"
 
+#define HANDLED false
+#define NOT_HANDLED true
+
 const uint16_t translate_map[][2] = {
   // ANSI   JIS
   {KC_EQL,  LSFT(KC_MINS)}, // 187
@@ -42,11 +45,11 @@ bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
   bool shifted = (mod_state | mods_from_keycode) & MOD_MASK_SHIFT;
   uint16_t target_keycode = shifted ? LSFT((uint16_t) keycode) : keycode;
   uint16_t translated_keycode = find(target_keycode);
-  if (translated_keycode == -1) {
-    return true;
-  }
 
   if (record->event.pressed) {
+    if (translated_keycode == -1) {
+      return NOT_HANDLED;
+    }
     if (mod_state & MOD_MASK_SHIFT) {
       del_mods(MOD_MASK_SHIFT);
       register_code16(translated_keycode);
@@ -54,8 +57,23 @@ bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
     } else {
       register_code16(translated_keycode);
     }
-  } else {
-    unregister_code16(translated_keycode);
+    return HANDLED;
+  } else { // released
+    bool handled_or_not = NOT_HANDLED;
+    if (translated_keycode != -1) {
+      unregister_code16(translated_keycode);
+      handled_or_not = HANDLED;
+    }
+    // unregister shifted key
+    if (!shifted) {
+      translated_keycode = find(LSFT((uint16_t) keycode));
+      if (translated_keycode == -1) {
+        return handled_or_not;
+      }
+
+      unregister_code16(translated_keycode);
+      handled_or_not = HANDLED;
+    }
+    return handled_or_not;
   }
-  return false;
 }
