@@ -1,31 +1,36 @@
 #include QMK_KEYBOARD_H
 #include "translate_ansi_to_jis.h"
 
+const uint16_t translate_map[][2] = {
+  // ANSI   JIS
+  {KC_EQL,  LSFT(KC_MINS)}, // 187
+  {KC_LBRC, KC_RBRC      }, // 219
+  {KC_BSLS, KC_INT3      }, // 220
+  {KC_RBRC, KC_NUHS      }, // 221
+  {KC_QUOT, LSFT(KC_7)   }, // 222
+  {KC_GRV,  LSFT(KC_LBRC)}, // 192
+  {KC_RPRN, LSFT(KC_9)   }, //  48 + 512
+  {KC_AT,   KC_LBRC      }, //  50 + 512
+  {KC_CIRC, KC_EQL       }, //  54 + 512
+  {KC_AMPR, LSFT(KC_6)   }, //  55 + 512
+  {KC_ASTR, LSFT(KC_QUOT)}, //  56 + 512
+  {KC_LPRN, LSFT(KC_8)   }, //  57 + 512
+  {KC_PLUS, LSFT(KC_SCLN)}, // 187 + 512
+  {KC_UNDS, LSFT(KC_INT1)}, // 189 + 512
+  {KC_LCBR, LSFT(KC_RBRC)}, // 219 + 512
+  {KC_PIPE, LSFT(KC_INT3)}, // 220 + 512
+  {KC_RCBR, LSFT(KC_NUHS)}, // 221 + 512
+  {KC_COLN, KC_QUOT      }, // 221 + 512
+  {KC_DQT,  LSFT(KC_2)   }, // 221 + 512
+  {KC_TILD, LSFT(KC_EQL) }, // 221 + 512
+};
+const size_t rows = sizeof(translate_map) / sizeof(translate_map[0]);
+
 uint16_t find(uint16_t kc) {
-  // case ANSI: return JIS; break;
-  switch (kc) {
-    case KC_EQL:  return LSFT(KC_MINS); // 187
-    case KC_LBRC: return KC_RBRC; // 219
-    case KC_BSLS: return KC_INT3; // 220
-    case KC_RBRC: return KC_NUHS; // 221
-    case KC_QUOT: return LSFT(KC_7); // 222
-    case KC_GRV:  return LSFT(KC_LBRC); // 192
-    case KC_RPRN: return LSFT(KC_9); //  48 + 512
-    case KC_AT:   return KC_LBRC; //  50 + 512
-    case KC_CIRC: return KC_EQL; //  54 + 512
-    case KC_AMPR: return LSFT(KC_6); //  55 + 512
-    case KC_ASTR: return LSFT(KC_QUOT); //  56 + 512
-    case KC_LPRN: return LSFT(KC_8); //  57 + 512
-    case KC_PLUS: return LSFT(KC_SCLN); // 187 + 512
-    case KC_UNDS: return LSFT(KC_INT1); // 189 + 512
-    case KC_LCBR: return LSFT(KC_RBRC); // 219 + 512
-    case KC_PIPE: return LSFT(KC_INT3); // 220 + 512
-    case KC_RCBR: return LSFT(KC_NUHS); // 221 + 512
-    case KC_COLN: return KC_QUOT; // 221 + 512
-    case KC_DQT:  return LSFT(KC_2); // 221 + 512
-    case KC_TILD: return LSFT(KC_EQL); // 221 + 512
-    default: return -1;
+  for(size_t index = 0; index < rows; index ++) {
+    if (translate_map[index][0] == kc) return index;
   }
+  return -1;
 }
 
 bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
