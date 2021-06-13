@@ -28,7 +28,7 @@ const size_t rows = sizeof(translate_map) / sizeof(translate_map[0]);
 
 uint16_t find(uint16_t kc) {
   for(size_t index = 0; index < rows; index ++) {
-    if (translate_map[index][0] == kc) return index;
+    if (translate_map[index][0] == kc) return translate_map[index][1];
   }
   return -1;
 }
