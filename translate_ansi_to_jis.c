@@ -36,6 +36,9 @@ uint16_t find(uint16_t kc) {
   return -1;
 }
 
+// Assumes that multiple symbolic keys will never be used at the same time.
+uint16_t original_keycode_of_registered_shifted_key = 0;
+
 bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
   uint8_t mod_state = get_mods();
 
@@ -57,23 +60,25 @@ bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
     } else {
       register_code16(translated_keycode);
     }
+    if (shifted) {
+      original_keycode_of_registered_shifted_key = keycode;
+    }
     return HANDLED;
   } else { // released
-    bool handled_or_not = NOT_HANDLED;
-    if (translated_keycode != -1) {
-      unregister_code16(translated_keycode);
-      handled_or_not = HANDLED;
-    }
-    // unregister shifted key
-    if (!shifted) {
-      translated_keycode = find(LSFT((uint16_t) keycode));
-      if (translated_keycode == -1) {
-        return handled_or_not;
+    if (original_keycode_of_registered_shifted_key == keycode) {
+      // Properly unregister the last registered shifted key when the key is released even if shift is not pressed
+      if (!shifted) {
+        translated_keycode = find(LSFT((uint16_t) keycode));
       }
-
       unregister_code16(translated_keycode);
-      handled_or_not = HANDLED;
+      original_keycode_of_registered_shifted_key = 0;
+      return HANDLED;
+    } else {
+      if (translated_keycode == -1) {
+        return NOT_HANDLED;
+      }
+      unregister_code16(translated_keycode);
+      return HANDLED;
     }
-    return handled_or_not;
   }
 }
