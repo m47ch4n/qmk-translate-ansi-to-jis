@@ -37,7 +37,7 @@ uint16_t find(uint16_t kc) {
 }
 
 // Assumes that multiple symbolic keys will never be used at the same time.
-uint16_t original_keycode_of_registered_shifted_key = 0;
+uint16_t ansi_keycode_of_registered_key = 0;
 
 bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
   uint8_t mod_state = get_mods();
@@ -45,14 +45,20 @@ bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
   uint8_t mods_from_keycode = mods_and_keycode >> 8; // Drop keycode bits
   uint8_t keycode = mods_and_keycode; // Drop mod bits
 
-  bool shifted = (mod_state | mods_from_keycode) & MOD_MASK_SHIFT;
-  uint16_t target_keycode = shifted ? LSFT((uint16_t) keycode) : keycode;
-  uint16_t translated_keycode = find(target_keycode);
-
   if (record->event.pressed) {
+    bool shifted = (mod_state | mods_from_keycode) & MOD_MASK_SHIFT;
+    uint16_t ansi_keycode = shifted ? LSFT((uint16_t) keycode) : keycode;
+    uint16_t translated_keycode = find(ansi_keycode);
     if (translated_keycode == -1) {
       return NOT_HANDLED;
     }
+
+    if (ansi_keycode_of_registered_key != 0) {
+      // unregister the previous symbolic key
+      unregister_code16(find(ansi_keycode_of_registered_key));
+    }
+    ansi_keycode_of_registered_key = ansi_keycode;
+
     if (mod_state & MOD_MASK_SHIFT) {
       del_mods(MOD_MASK_SHIFT);
       register_code16(translated_keycode);
@@ -60,25 +66,15 @@ bool process_record_user_a2j(uint16_t mods_and_keycode, keyrecord_t *record) {
     } else {
       register_code16(translated_keycode);
     }
-    if (shifted) {
-      original_keycode_of_registered_shifted_key = keycode;
-    }
     return HANDLED;
   } else { // released
-    if (original_keycode_of_registered_shifted_key == keycode) {
-      // Properly unregister the last registered shifted key when the key is released even if shift is not pressed
-      if (!shifted) {
-        translated_keycode = find(LSFT((uint16_t) keycode));
-      }
-      unregister_code16(translated_keycode);
-      original_keycode_of_registered_shifted_key = 0;
+    // if keycode is the same as previous one without mods.
+    if (keycode == (uint8_t) ansi_keycode_of_registered_key) {
+      unregister_code16(find(ansi_keycode_of_registered_key));
+      ansi_keycode_of_registered_key = 0;
       return HANDLED;
     } else {
-      if (translated_keycode == -1) {
-        return NOT_HANDLED;
-      }
-      unregister_code16(translated_keycode);
-      return HANDLED;
+      return NOT_HANDLED;
     }
   }
 }
