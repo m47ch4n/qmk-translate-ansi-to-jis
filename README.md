@@ -1,5 +1,6 @@
 # qmk-translate-ansi-to-jis
-ANSI (US)配列用のキーコードをJIS (JP)配列用キーコードに変換するQMK Firmware用ライブラリです。
+ANSI (US)配列用のキーコードをJIS (JP)配列用キーコードに変換するQMK Firmware用ライブラリ
+
 
 ## 用途
 QMK Firmware でキーマップを作成するほとんどの方はANSI配列で作成しており、当然そのキーボードはANSI配列としてOSに認識させていると思います。
@@ -44,15 +45,15 @@ SRC += a2j/translate_ansi_to_jis.c
 #include "a2j/translate_ansi_to_jis.h"
 ```
 
-3-2. `process_record_user` 関数の先頭に下記の行を追加
+3-2. `process_record_user` 関数に下記の行を追加
+
+`return true;` で終了している行を以下のように編集してください。
 ```c
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-  // 以下の3行を追加
-  if (!process_record_user_a2j(keycode, record)) {
-    return false;
-  }
-
   ...
+
+  // 以下の行を追加
+  return process_record_user_a2j(keycode, record);
 }
 ```
 
@@ -62,11 +63,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 ```c
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-  if (is_jis_mode() && !process_record_user_a2j(keycode, record)) {
-    return false;
+  ...
+
+  if (!is_jis_mode()) {
+    return true;
   }
 
-  ...
+  return process_record_user_a2j(keycode, record);
 }
 ```
 
