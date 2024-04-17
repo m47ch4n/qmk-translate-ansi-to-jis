@@ -1,8 +1,5 @@
 #include QMK_KEYBOARD_H
 #include "translate_ansi_to_jis.h"
-#ifdef CONSOLE_ENABLE
-#    include "print.h"
-#endif
 
 #define HANDLED false
 #define NOT_HANDLED true
@@ -51,15 +48,6 @@ bool process_record_user_a2j(uint16_t kc, keyrecord_t *record) {
 
     uint8_t mods_kc  = QK_MODS_GET_MODS(kc);
     uint8_t basic_kc = QK_MODS_GET_BASIC_KEYCODE(kc);
-
-#ifdef CONSOLE_ENABLE
-    // clang-format off
-    uint16_t mods_and_basic_kc = QK_MODS_MAX & kc;
-    uprintf("--- process_record_user_a2j ---\n");
-    uprintf("kc     : "); print("0x"); print_hex16(mods_and_basic_kc); print(" 0b"); print_bin16(mods_and_basic_kc); uprintf("\n");
-    uprintf("pushing: "); print("0x"); print_hex16(pushing_shift_embeded_basic_kc); print(" 0b"); print_bin16(pushing_shift_embeded_basic_kc); uprintf("\n");
-    // clang-format on
-#endif
 
     if (record->event.pressed) {
         uint8_t  mod_state                    = get_mods();
